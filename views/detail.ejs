@@ -7,7 +7,7 @@
                         <span class="label label-info"><%= art.tag %></span>
                         <span class="create-time">
                             <span class="text-bold">时间：</span>
-                            <%= moment(art.createTime).local('zh-cn').format('LL HH:mm:ss') %>
+                            <%= moment(art.createdAt).local('zh-cn').format('LL HH:mm:ss') %>
                         </span>
                     </p>
                     <p><%= art.content %></p>

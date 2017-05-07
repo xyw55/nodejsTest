@@ -21,15 +21,23 @@ var mongoose = require('mongoose');
 // models
 var models = require('./models/models');
 
-var User = models.User;
-var Note = models.Note;
-
 // connect mongo
 mongoose.connect('mongodb://localhost:27017/notes');
 mongoose.connection.on('error', console.error.bind(console, "connect monogdb error"));
 
 //创建express实例
 var app = express();
+
+//初始化  
+var config = models.config;
+models.orm.initialize(config, function(err, models) {
+  if(err) {
+    console.error('orm initialize failed.', err)
+    return;
+  }
+
+  app.models = models.collections;
+});
 
 //定义ejs模版引擎和模版文件位置
 app.set('views', path.join(__dirname, 'views'));
@@ -57,16 +65,17 @@ app.get('/', function(req, res) {
     // if (req.session.user == null) {
     //     return res.redirect('/login');
     // }
-    Note.find({author: req.session.user.username})
-        .exec(function(err, allNotes) {
+    app.models.notes.find({author: req.session.user.username}, function(err, allNotes) {
             if (err) {
                 console.log(err);
                 return res.redirect('/');
             }
+            // console.log(allNotes);
             res.render('index', {
                 title: '首页',
                 user: req.session.user,
-                notes: allNotes
+                notes: allNotes,
+                moment: moment
             });
         })
 
@@ -151,7 +160,7 @@ app.post('/register', function(req, res) {
     
 
     // 检查用户名是否已经存在，不存在，则保存该记录
-    User.findOne({username:username}, function(err, user) {
+    app.models.users.findOne({username:username}, function(err, user) {
         if (err) {
             // console.log(err);
             return res.render('register',{
@@ -174,18 +183,30 @@ app.post('/register', function(req, res) {
             md5password = md5.update(password).digest('hex');
 
         // 新建user对象用于保存数据
-        var newUser = new User({
+        var newUser = {
             username: username,
             password: md5password
-        });
-        newUser.save(function(err, doc){
-            if (err) {
-                // console.log(err);
+        };
+
+        // console.log(app.models);
+        app.models.users.create(newUser, function(err, user) {
+            if(err) {
+                console.log('err is :\n',err);
                 return res.redirect('/register');
-            }
-            // console.log('register success');
-            return res.redirect('/');
-        });
+            }  
+            else {
+                console.log('creat success :\n',user);
+                return res.redirect('/');
+            }  
+          });
+        // newUser.save(function(err, doc){
+        //     if (err) {
+        //         // console.log(err);
+        //         return res.redirect('/register');
+        //     }
+        //     // console.log('register success');
+        //     return res.redirect('/');
+        // });
 
     });
 
@@ -226,7 +247,7 @@ app.post('/login', function(req, res) {
 
 
     // 检查用户名是否已经存在，不存在，则保存该记录
-    User.findOne({username:username}, function(err, user) {
+    app.models.users.findOne({username:username}, function(err, user) {
         if (err) {
             // console.log(err);
             return res.render('login', {
@@ -290,14 +311,13 @@ app.get('/post', function(req, res) {
 
 app.get('/post', checkLogin.noLogin);
 app.post('/post', function(req, res) {
-    var note = new Note({
+    var note = {
         title: req.body.title,
         author: req.session.user.username,
         tag: req.body.tag,
         content: req.body.content
-    });
-
-    note.save(function(err, doc) {
+    };
+    app.models.notes.create(note,function(err, doc) {
         if (err) {
             // console.log(err);
             return res.redirect('/post');
@@ -307,11 +327,10 @@ app.post('/post', function(req, res) {
     });
 });
 
-app.get('/detail/:_id', checkLogin.noLogin);
-app.get('/detail/:_id', function(req, res) {
+app.get('/detail/:id', checkLogin.noLogin);
+app.get('/detail/:id', function(req, res) {
     console.log("look note");
-    Note.findOne({_id: req.params._id})
-        .exec(function(err, art) {
+    app.models.notes.findOne({id: req.params.id}, function(err, art) {
             if (err) {
                 // console.log(err);
                 return res.redirect('/');
