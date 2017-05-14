@@ -12,6 +12,8 @@ var jwt = require('jsonwebtoken');
 
 var utils = require('./utils/utils');
 
+var myFileStore = require('./utils/MyFileStore.js')(session);
+// var FileStore = require('session-file-store')(session);
 //nologin check
 var checkLogin = require('./checkLogin.js');
 
@@ -56,7 +58,8 @@ app.use(session({
     name: 'mynote',
     cookie: {maxAge: 1000 * 60 * 20}, // 设置保存时间为20分钟
     resave: false,
-    saveUninitialized: true
+    saveUninitialized: true,
+    store: new myFileStore('../session/')
 }));
 
 //相应首页请求
